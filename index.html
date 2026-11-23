@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gemini Strategic Arsenal 3D - 실시간 탄도/핵폭발 시뮬레이터</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #070b12;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #e6edf3;
+  }
+  #canvas-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  /* Thermal Flash Overlay */
+  #flash-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, #ffffff 0%, #fff4d2 45%, #ff9d3b 100%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 30;
+    transition: opacity 0.05s linear;
+  }
+  /* Top Telemetry Bar */
+  #top-hud {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    padding: 8px 20px;
+    z-index: 20;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .tele-item { text-align: center; min-width: 82px; }
+  .tele-label { font-size: 10px; color: #8b949e; letter-spacing: 0.8px; text-transform: uppercase; }
+  .tele-val { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .status-ready { color: #58a6ff; }
+  .status-flight { color: #f0883e; }
+  .status-detonated { color: #ff4b4b; }
+
+  /* Left Control Panel */
+  #left-panel {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 285px;
+    max-height: calc(100vh - 86px);
+    overflow-y: auto;
+    background: rgba(13, 17, 23, 0.88);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    padding: 14px;
+    z-index: 20;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+  }
+  #left-panel::-webkit-scrollbar { width: 5px; }
+  #left-panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+
+  .panel-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #21262d;
+  }
+  .section-lbl {
+    font-size: 11px;
+    font-weight: 700;
+    color: #8b949e;
+    margin: 10px 0 5px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  select, input[type="range"] {
+    width: 100%;
+    background: #161b22;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+    border-radius: 7px;
+    padding: 6px 8px;
+    font-size: 12px;
+    outline: none;
+  }
+  select:focus { border-color: #58a6ff; }
+  input[type="range"] { padding: 0; accent-color: #ff4b4b; cursor: pointer; }
+
+  .row-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .badge-val {
+    background: #21262d;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-weight: 700;
+    color: #ffa657;
+    font-size: 11px;
+  }
+
+  .btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .btn-toggle {
+    background: #161b22;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    padding: 6px 4px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .btn-toggle.active {
+    background: rgba(88, 166, 255, 0.18);
+    border-color: #58a6ff;
+    color: #fff;
+  }
+
+  #launch-btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 11px;
+    border: none;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #ff3b30 0%, #d9261c 100%);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(255, 59, 48, 0.45);
+    transition: transform 0.1s, filter 0.15s;
+  }
+  #launch-btn:hover { filter: brightness(1.1); }
+  #launch-btn:active { transform: scale(0.98); }
+
+  .sub-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 5px;
+    margin-top: 6px;
+  }
+  .btn-sub {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    padding: 6px 4px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-sub:hover { background: #30363d; }
+
+  /* Right Damage & Casualty Panel */
+  #right-panel {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 255px;
+    background: rgba(13, 17, 23, 0.88);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    padding: 14px;
+    z-index: 20;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+  }
+  .stat-card {
+    background: #161b22;
+    border: 1px solid #282e36;
+    border-radius: 9px;
+    padding: 9px 11px;
+    margin-bottom: 8px;
+  }
+  .stat-lbl { font-size: 11px; color: #8b949e; font-weight: 600; }
+  .stat-num-red { font-size: 21px; font-weight: 800; color: #ff4b4b; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat-num-org { font-size: 19px; font-weight: 800; color: #ffa657; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .zone-list { margin-top: 6px; }
+  .zone-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11.5px;
+    padding: 5px 0;
+    border-bottom: 1px solid #21262d;
+  }
+  .zone-item:last-child { border-bottom: none; }
+  .dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  /* Bottom Timeline Bar */
+  #bottom-bar {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(740px, calc(100% - 24px));
+    background: rgba(13, 17, 23, 0.9);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 9px 16px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #timeline-slider { flex: 1; accent-color: #58a6ff; }
+  .cam-pills { display: flex; gap: 4px; }
+  .cam-pill {
+    background: #161b22;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cam-pill.active { background: #1f6feb; border-color: #58a6ff; color: #fff; }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div id="flash-overlay"></div>
+
+<!-- Top Telemetry HUD -->
+<div id="top-hud">
+  <div class="tele-item">
+    <div class="tele-label">작전 상태</div>
+    <div id="hud-status" class="tele-val status-ready">발사 대기</div>
+  </div>
+  <div class="tele-item">
+    <div class="tele-label">경과 시간</div>
+    <div id="hud-time" class="tele-val">T+ 00.0s</div>
+  </div>
+  <div class="tele-item">
+    <div class="tele-label">탄두 고도</div>
+    <div id="hud-alt" class="tele-val">0.0 km</div>
+  </div>
+  <div class="tele-item">
+    <div class="tele-label">비행 속도</div>
+    <div id="hud-speed" class="tele-val">Mach 0.0</div>
+  </div>
+  <div class="tele-item">
+    <div class="tele-label">버섯구름 고도</div>
+    <div id="hud-cloud" class="tele-val">0.0 km</div>
+  </div>
+</div>
+
+<!-- Left Control Panel -->
+<div id="left-panel">
+  <div class="panel-title">☢️ Strategic Arsenal 3D</div>
+
+  <div class="section-lbl">1. 타격 목표 도시</div>
+  <select id="target-select">
+    <option value="seoul" selected>🇰🇷 서울 청계광장 (도심 밀집)</option>
+    <option value="pyongyang">🇰🇵 평양 김일성광장</option>
+    <option value="tokyo">🇯🇵 도쿄 신주쿠</option>
+    <option value="beijing">🇨🇳 베이징 톈안먼</option>
+    <option value="washington">🇺🇸 워싱턴 D.C.</option>
+  </select>
+
+  <div class="section-lbl">2. 탄두 / 무기 체계</div>
+  <select id="weapon-select">
+    <option value="15">Little Boy (히로시마 원폭 - 15 kt)</option>
+    <option value="50" selected>B61-12 (미국 최신 전술핵 - 50 kt)</option>
+    <option value="300">W87 (미니트맨 III ICBM - 300 kt)</option>
+    <option value="1500">화성-17형 (ICBM 추정치 - 1,500 kt)</option>
+    <option value="5000">RS-28 사르맛 (러시아 ICBM - 5,000 kt)</option>
+    <option value="50000">Tsar Bomba (역대 최대 실험핵 - 50,000 kt)</option>
+    <option value="custom">직접 위력 조절 (Custom)</option>
+  </select>
+
+  <div style="margin-top:8px;">
+    <div class="row-between">
+      <span>폭발 위력 (Yield)</span>
+      <span id="yield-badge" class="badge-val">50 kt</span>
+    </div>
+    <input type="range" id="yield-slider" min="1" max="100" value="35" />
+  </div>
+
+  <div class="section-lbl">3. 폭발 고도 & 지도 스타일</div>
+  <div class="btn-group">
+    <div id="btn-ground" class="btn-toggle active">지표면 폭발</div>
+    <div id="btn-air" class="btn-toggle">공중 폭발 (+30%)</div>
+  </div>
+  <div class="btn-group" style="margin-top:5px;">
+    <div id="btn-map-dark" class="btn-toggle active">전술 다크맵</div>
+    <div id="btn-map-sat" class="btn-toggle">위성 실사맵</div>
+  </div>
+
+  <div class="section-lbl">4. 기상 (풍향 / 풍속)</div>
+  <div class="row-between">
+    <span>풍향 (낙진 확산 방향)</span>
+    <span id="wind-deg-badge" class="badge-val">90° (동쪽)</span>
+  </div>
+  <input type="range" id="wind-deg" min="0" max="360" value="90" />
+
+  <div class="row-between" style="margin-top:6px;">
+    <span>풍속</span>
+    <span id="wind-spd-badge" class="badge-val">30 km/h</span>
+  </div>
+  <input type="range" id="wind-spd" min="0" max="100" value="30" />
+
+  <button id="launch-btn">🚀 미사일 발사 (LAUNCH)</button>
+  <div class="sub-actions">
+    <button id="pause-btn" class="btn-sub">⏸ 일시정지</button>
+    <button id="reset-btn" class="btn-sub">🔄 초기화</button>
+    <button id="sound-btn" class="btn-sub">🔊 효과음 ON</button>
+  </div>
+</div>
+
+<!-- Right Live Casualty & Radius Panel -->
+<div id="right-panel">
+  <div class="panel-title">📊 실시간 피해 분석</div>
+  <div class="stat-card">
+    <div class="stat-lbl">누적 추정 사망자 (실시간 연산)</div>
+    <div id="stat-dead" class="stat-num-red">0 명</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-lbl">누적 추정 부상자</div>
+    <div id="stat-injured" class="stat-num-org">0 명</div>
+  </div>
+
+  <div class="section-lbl">구역별 최대 피해 반경</div>
+  <div class="zone-list">
+    <div class="zone-item">
+      <span><i class="dot" style="background:#ff2a2a;"></i>화구 (즉각 기화)</span>
+      <strong id="rad-fireball">0.52 km</strong>
+    </div>
+    <div class="zone-item">
+      <span><i class="dot" style="background:#ff6b00;"></i>20 psi (콘크리트 완파)</span>
+      <strong id="rad-20psi">1.02 km</strong>
+    </div>
+    <div class="zone-item">
+      <span><i class="dot" style="background:#ffd000;"></i>5 psi (일반건물 붕괴)</span>
+      <strong id="rad-5psi">2.55 km</strong>
+    </div>
+    <div class="zone-item">
+      <span><i class="dot" style="background:#ff9e44;"></i>열복사 (3도 화상)</span>
+      <strong id="rad-thermal">5.74 km</strong>
+    </div>
+    <div class="zone-item">
+      <span><i class="dot" style="background:#b44cff;"></i>방사능 낙진 (Fallout)</span>
+      <strong id="rad-fallout">18.4 km</strong>
+    </div>
+  </div>
+  <div style="margin-top:8px; font-size:10.5px; color:#8b949e; line-height:1.4;">
+    💡 마우스 좌클릭 회전, 우클릭 이동, 휠 확대/축소 지원
+  </div>
+</div>
+
+<!-- Bottom Timeline & Camera Bar -->
+<div id="bottom-bar">
+  <span style="font-size:11px; font-weight:700; color:#8b949e; white-space:nowrap;">시퀀스 제어</span>
+  <input type="range" id="timeline-slider" min="0" max="1000" value="0" />
+  <div class="cam-pills">
+    <div class="cam-pill active" data-cam="auto">🎥 자동연출</div>
+    <div class="cam-pill" data-cam="missile">🚀 탄두추적</div>
+    <div class="cam-pill" data-cam="ground">🏙️ 지상시점</div>
+    <div class="cam-pill" data-cam="orbit">🛰️ 자유시점</div>
+  </div>
+</div>
+
+<!-- Three.js & OrbitControls from reliable CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+// =========================================================
+// 1. CITY & WEAPON CONFIGURATION DATA
+// =========================================================
+const CITIES = {
+  seoul:      { name: "서울 청계광장", lat: 37.5693, lon: 126.9774, popCap: 9800000, density: 16000, riverAngle: 0.12 },
+  pyongyang:  { name: "평양 김일성광장", lat: 39.0194, lon: 125.7533, popCap: 3100000, density: 9500,  riverAngle: -0.45 },
+  tokyo:      { name: "도쿄 신주쿠",   lat: 35.6909, lon: 139.7002, popCap: 14000000, density: 15500, riverAngle: 0.6 },
+  beijing:    { name: "베이징 톈안먼", lat: 39.9042, lon: 116.3975, popCap: 12500000, density: 11500, riverAngle: 0.0 },
+  washington: { name: "워싱턴 D.C.",   lat: 38.8951, lon: -77.0364, popCap: 2800000, density: 4800,  riverAngle: -0.7 }
+};
+
+let state = {
+  cityKey: "seoul",
+  yieldKt: 50,
+  burstType: "ground", // 'ground' or 'air'
+  mapStyle: "dark",    // 'dark' or 'sat'
+  windDeg: 90,
+  windSpeed: 30,
+  cameraMode: "auto",
+  soundEnabled: true,
+
+  // Timeline state: 0.0 -> 1.0 (0~0.32 missile flight, 0.32 detonation, 0.32~1.0 explosion & mushroom cloud)
+  phase: "ready", // 'ready', 'playing', 'paused', 'finished'
+  progress: 0.0,
+  totalDuration: 18.0, // seconds
+  impactPoint: 0.30,   // normalized time of impact
+  flashTriggered: false
+};
+
+// Logarithmic slider mapping (1 kt -> 50,000 kt)
+function sliderToYield(v) {
+  const minLog = Math.log(1);
+  const maxLog = Math.log(50000);
+  const val = Math.exp(minLog + (maxLog - minLog) * ((v - 1) / 99));
+  return val < 10 ? Math.round(val * 10) / 10 : Math.round(val);
+}
+function yieldToSlider(y) {
+  const minLog = Math.log(1);
+  const maxLog = Math.log(50000);
+  return Math.round(1 + 99 * ((Math.log(Math.max(1, y)) - minLog) / (maxLog - minLog)));
+}
+
+// =========================================================
+// 2. WEB AUDIO API SOUND SYNTHESIZER (NO EXTERNAL FILES)
+// =========================================================
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) audioCtx = new AudioContext();
+  }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+
+function playLaunchSound() {
+  if (!state.soundEnabled) return;
+  initAudio();
+  if (!audioCtx) return;
+
+  const now = audioCtx.currentTime;
+  // Rocket thrust noise
+  const bufferSize = audioCtx.sampleRate * 3.5;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 1.8));
+
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(220, now);
+  filter.frequency.exponentialRampToValueAtTime(950, now + 1.5);
+  filter.frequency.exponentialRampToValueAtTime(160, now + 3.4);
+
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.01, now);
+  gain.gain.linearRampToValueAtTime(0.22, now + 0.3);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 3.4);
+
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  noise.start(now);
+}
+
+function playExplosionSound() {
+  if (!state.soundEnabled) return;
+  initAudio();
+  if (!audioCtx) return;
+
+  const now = audioCtx.currentTime;
+  // 1. Sub-bass shockwave boom
+  const osc = audioCtx.createOscillator();
+  const oscGain = audioCtx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(95, now);
+  osc.frequency.exponentialRampToValueAtTime(22, now + 3.2);
+  oscGain.gain.setValueAtTime(0.75, now);
+  oscGain.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
+  osc.connect(oscGain);
+  oscGain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 3.6);
+
+  // 2. Thunderous blast crackle & rumble
+  const dur = 5.5;
+  const bufferSize = audioCtx.sampleRate * dur;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    const env = Math.exp(-i / (audioCtx.sampleRate * 1.4));
+    data[i] = (Math.random() * 2 - 1) * env;
+  }
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+
+  const lowpass = audioCtx.createBiquadFilter();
+  lowpass.type = "lowpass";
+  lowpass.frequency.setValueAtTime(1400, now);
+  lowpass.frequency.exponentialRampToValueAtTime(95, now + dur);
+
+  const nGain = audioCtx.createGain();
+  nGain.gain.setValueAtTime(0.65, now);
+  nGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+  noise.connect(lowpass);
+  lowpass.connect(nGain);
+  nGain.connect(audioCtx.destination);
+  noise.start(now);
+}
+
+// =========================================================
+// 3. THREE.JS 3D ENGINE INITIALIZATION
+// =========================================================
+const container = document.getElementById("canvas-container");
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070b12);
+scene.fog = new THREE.FogExp2(0x070b12, 0.0011);
+
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.5, 4000);
+camera.position.set(0, 145, 220);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.maxPolarAngle = Math.PI * 0.485;
+controls.minDistance = 18;
+controls.maxDistance = 950;
+controls.target.set(0, 10, 0);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x6c7a89, 1.15);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xdce8f5, 1.1);
+dirLight.position.set(160, 280, 140);
+scene.add(dirLight);
+
+const blastLight = new THREE.PointLight(0xff8822, 0, 900);
+blastLight.position.set(0, 18, 0);
+scene.add(blastLight);
+
+// =========================================================
+// 4. MAP GROUND TEXTURE (PROCEDURAL + REAL TILE OVERLAY)
+// =========================================================
+// World scale: 1 scene unit = 100 meters (so 600 units = 60 km x 60 km map)
+const WORLD_SIZE = 700; // 70 km
+const METERS_PER_UNIT = 100;
+
+const mapCanvas = document.createElement("canvas");
+mapCanvas.width = 1024;
+mapCanvas.height = 1024;
+const mapCtx = mapCanvas.getContext("2d");
+const groundTexture = new THREE.CanvasTexture(mapCanvas);
+groundTexture.anisotropy = 8;
+
+function drawProceduralBaseMap() {
+  const isSat = state.mapStyle === "sat";
+  mapCtx.fillStyle = isSat ? "#1c261e" : "#0c121c";
+  mapCtx.fillRect(0, 0, 1024, 1024);
+
+  // Subtle city road blocks
+  mapCtx.strokeStyle = isSat ? "rgba(180,185,170,0.18)" : "rgba(56, 139, 253, 0.14)";
+  mapCtx.lineWidth = 1;
+  for (let i = 0; i <= 1024; i += 32) {
+    mapCtx.beginPath(); mapCtx.moveTo(i, 0); mapCtx.lineTo(i, 1024); mapCtx.stroke();
+    mapCtx.beginPath(); mapCtx.moveTo(0, i); mapCtx.lineTo(1024, i); mapCtx.stroke();
+  }
+
+  // Major arterial highways
+  mapCtx.strokeStyle = isSat ? "rgba(220,210,180,0.32)" : "rgba(88, 166, 255, 0.28)";
+  mapCtx.lineWidth = 2.5;
+  for (let i = 128; i < 1024; i += 192) {
+    mapCtx.beginPath(); mapCtx.moveTo(i, 0); mapCtx.lineTo(i, 1024); mapCtx.stroke();
+    mapCtx.beginPath(); mapCtx.moveTo(0, i); mapCtx.lineTo(1024, i); mapCtx.stroke();
+  }
+
+  // River feature (e.g. Han River / Taedong River)
+  const city = CITIES[state.cityKey];
+  mapCtx.save();
+  mapCtx.translate(512, 512);
+  mapCtx.rotate(city.riverAngle);
+  mapCtx.fillStyle = isSat ? "#13293d" : "#09192b";
+  mapCtx.beginPath();
+  mapCtx.moveTo(-600, 38);
+  mapCtx.bezierCurveTo(-200, 15, 200, 65, 600, 30);
+  mapCtx.lineTo(600, 72);
+  mapCtx.bezierCurveTo(200, 105, -200, 55, -600, 78);
+  mapCtx.closePath();
+  mapCtx.fill();
+  mapCtx.restore();
+
+  // Tactical range rings on ground
+  mapCtx.strokeStyle = isSat ? "rgba(255,255,255,0.22)" : "rgba(88,166,255,0.25)";
+  mapCtx.lineWidth = 1.5;
+  [100, 220, 350, 480].forEach(r => {
+    mapCtx.beginPath();
+    mapCtx.arc(512, 512, r, 0, Math.PI * 2);
+    mapCtx.stroke();
+  });
+
+  groundTexture.needsUpdate = true;
+}
+
+function loadRealMapTiles() {
+  drawProceduralBaseMap();
+  const city = CITIES[state.cityKey];
+  const zoom = 11; // ~76m/pixel -> 5x5 tiles covers ~95km around target
+  const n = Math.pow(2, zoom);
+  const centerX = Math.floor((city.lon + 180) / 360 * n);
+  const latRad = city.lat * Math.PI / 180;
+  const centerY = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+
+  const gridRadius = 2; // 5x5 grid
+  const tilePx = 1024 / (gridRadius * 2 + 1);
+
+  for (let dx = -gridRadius; dx <= gridRadius; dx++) {
+    for (let dy = -gridRadius; dy <= gridRadius; dy++) {
+      const tx = centerX + dx;
+      const ty = centerY + dy;
+      const url = state.mapStyle === "sat"
+        ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`
+        : `https://basemaps.cartocdn.com/dark_all/${zoom}/${tx}/${ty}.png`;
+
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const px = (dx + gridRadius) * tilePx;
+        const py = (dy + gridRadius) * tilePx;
+        mapCtx.drawImage(img, px, py, tilePx + 0.5, tilePx + 0.5);
+        // Subtle tactical grid overlay on top of real map
+        mapCtx.strokeStyle = "rgba(255,255,255,0.08)";
+        mapCtx.lineWidth = 1;
+        mapCtx.strokeRect(px, py, tilePx, tilePx);
+        groundTexture.needsUpdate = true;
+      };
+      img.src = url;
+    }
+  }
+}
+
+const groundGeo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE);
+const groundMat = new THREE.MeshStandardMaterial({
+  map: groundTexture,
+  roughness: 0.9,
+  metalness: 0.1
+});
+const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+groundMesh.rotation.x = -Math.PI / 2;
+scene.add(groundMesh);
+
+// =========================================================
+// 5. 3D CITY BUILDINGS (INSTANCED MESH THAT COLLAPSES ON BLAST)
+// =========================================================
+const BUILDING_COUNT = 950;
+const bldgGeo = new THREE.BoxGeometry(1, 1, 1);
+bldgGeo.translate(0, 0.5, 0); // pivot at ground
+const bldgMat = new THREE.MeshStandardMaterial({ color: 0x8fa3b8, roughness: 0.65, metalness: 0.25 });
+const cityInstanced = new THREE.InstancedMesh(bldgGeo, bldgMat, BUILDING_COUNT);
+scene.add(cityInstanced);
+
+const buildings = [];
+const dummy = new THREE.Object3D();
+const bldgColor = new THREE.Color();
+
+function generateCityBuildings() {
+  buildings.length = 0;
+  for (let i = 0; i < BUILDING_COUNT; i++) {
+    // Cluster denser near ground zero (0,0) and spread outward
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.pow(Math.random(), 0.72) * 195; // up to 19.5 km
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+
+    // Height taller in downtown core
+    const coreFactor = Math.max(0.25, 1 - dist / 140);
+    const w = 1.2 + Math.random() * 2.2;
+    const d = 1.2 + Math.random() * 2.2;
+    const h = (1.5 + Math.random() * 9.5) * coreFactor + 1.0;
+
+    buildings.push({ x, z, w, d, h, dist, angle });
+  }
+  updateCityDestruction(0);
+}
+
+function updateCityDestruction(shockRadiusUnits, fireballRadiusUnits = 0, r20Units = 0, r5Units = 0) {
+  for (let i = 0; i < BUILDING_COUNT; i++) {
+    const b = buildings[i];
+    dummy.position.set(b.x, 0, b.z);
+
+    if (shockRadiusUnits <= 0 || b.dist > shockRadiusUnits) {
+      // Intact building
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(b.w, b.h, b.d);
+      bldgColor.setHex(b.dist < 35 ? 0x7b93ad : 0x56697d);
+    } else if (b.dist <= fireballRadiusUnits) {
+      // Vaporized completely
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(0.001, 0.001, 0.001);
+      bldgColor.setHex(0x111111);
+    } else if (b.dist <= r20Units) {
+      // Crushed rubble
+      const tiltDir = Math.atan2(b.x, b.z);
+      dummy.rotation.set(Math.cos(tiltDir) * 1.35, 0, -Math.sin(tiltDir) * 1.35);
+      dummy.scale.set(b.w * 1.2, b.h * 0.18, b.d * 1.2);
+      bldgColor.setHex(0x231d1b);
+    } else if (b.dist <= r5Units) {
+      // Heavily damaged / blown outward
+      const tiltDir = Math.atan2(b.x, b.z);
+      const tAmount = 0.45 + 0.45 * (1 - (b.dist - r20Units) / Math.max(1, r5Units - r20Units));
+      dummy.rotation.set(Math.cos(tiltDir) * tAmount, 0, -Math.sin(tiltDir) * tAmount);
+      dummy.scale.set(b.w, b.h * 0.65, b.d);
+      bldgColor.setHex(0x3a3230);
+    } else {
+      // Scorched by thermal wave
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(b.w, b.h, b.d);
+      bldgColor.setHex(0x493c36);
+    }
+
+    dummy.updateMatrix();
+    cityInstanced.setMatrixAt(i, dummy.matrix);
+    cityInstanced.setColorAt(i, bldgColor);
+  }
+  cityInstanced.instanceMatrix.needsUpdate = true;
+  if (cityInstanced.instanceColor) cityInstanced.instanceColor.needsUpdate = true;
+}
+
+// =========================================================
+// 6. TARGET RETICLE, LAUNCH PAD & BALLISTIC MISSILE
+// =========================================================
+// Pulsing Target Reticle at (0, 0.2, 0)
+const reticleGroup = new THREE.Group();
+const retRing1 = new THREE.Mesh(
+  new THREE.RingGeometry(3.5, 4.4, 48),
+  new THREE.MeshBasicMaterial({ color: 0xff3b30, side: THREE.DoubleSide, transparent: true, opacity: 0.9 })
+);
+retRing1.rotation.x = -Math.PI / 2;
+const retRing2 = new THREE.Mesh(
+  new THREE.RingGeometry(7.5, 8.1, 48),
+  new THREE.MeshBasicMaterial({ color: 0xff3b30, side: THREE.DoubleSide, transparent: true, opacity: 0.45 })
+);
+retRing2.rotation.x = -Math.PI / 2;
+reticleGroup.add(retRing1, retRing2);
+reticleGroup.position.y = 0.3;
+scene.add(reticleGroup);
+
+// Ballistic Trajectory Curve (Launch from NW -> Target (0,0,0))
+const launchOrigin = new THREE.Vector3(-190, 0, -170);
+const midApex = new THREE.Vector3(-95, 165, -85);
+const impactPos = new THREE.Vector3(0, 0, 0);
+const missileCurve = new THREE.QuadraticBezierCurve3(launchOrigin, midApex, impactPos);
+
+// Dotted Trajectory Guide Line
+const curvePoints = missileCurve.getPoints(80);
+const trajGeo = new THREE.BufferGeometry().setFromPoints(curvePoints);
+const trajMat = new THREE.LineDashedMaterial({
+  color: 0x58a6ff,
+  dashSize: 3,
+  gapSize: 2,
+  transparent: true,
+  opacity: 0.55
+});
+const trajLine = new THREE.Line(trajGeo, trajMat);
+trajLine.computeLineDistances();
+scene.add(trajLine);
+
+// 3D Missile Mesh
+const missileGroup = new THREE.Group();
+const bodyMesh = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.65, 0.85, 7.5, 16),
+  new THREE.MeshStandardMaterial({ color: 0xe6edf3, metalness: 0.6, roughness: 0.3 })
+);
+bodyMesh.rotation.x = Math.PI / 2;
+const noseMesh = new THREE.Mesh(
+  new THREE.ConeGeometry(0.65, 2.6, 16),
+  new THREE.MeshStandardMaterial({ color: 0xff3b30, metalness: 0.4, roughness: 0.3 })
+);
+noseMesh.rotation.x = Math.PI / 2;
+noseMesh.position.z = 5.05;
+
+// Rocket Exhaust Flame Cone
+const flameMesh = new THREE.Mesh(
+  new THREE.ConeGeometry(1.1, 7.0, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffaa22, transparent: true, opacity: 0.9 })
+);
+flameMesh.rotation.x = -Math.PI / 2;
+flameMesh.position.z = -7.0;
+
+missileGroup.add(bodyMesh, noseMesh, flameMesh);
+missileGroup.position.copy(launchOrigin);
+scene.add(missileGroup);
+
+// Missile Smoke Trail Particles
+const TRAIL_COUNT = 120;
+const trailGeo = new THREE.BufferGeometry();
+const trailPositions = new Float32Array(TRAIL_COUNT * 3);
+trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPositions, 3));
+const trailMat = new THREE.PointsMaterial({
+  color: 0xffcfa3,
+  size: 2.8,
+  transparent: true,
+  opacity: 0.65
+});
+const trailPoints = new THREE.Points(trailGeo, trailMat);
+trailPoints.visible = false;
+scene.add(trailPoints);
+
+// =========================================================
+// 7. NUCLEAR EXPLOSION 3D FX (FIREBALL, SHOCKWAVE, MUSHROOM CLOUD, ZONES)
+// =========================================================
+const explosionGroup = new THREE.Group();
+scene.add(explosionGroup);
+
+// 7A. Glowing Fireball Core + Outer Plasma Shell
+const fireballCore = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 32, 24),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 })
+);
+const fireballOuter = new THREE.Mesh(
+  new THREE.SphereGeometry(1.15, 32, 24),
+  new THREE.MeshBasicMaterial({ color: 0xff5500, transparent: true, opacity: 0.65 })
+);
+fireballCore.visible = false;
+fireballOuter.visible = false;
+explosionGroup.add(fireballCore, fireballOuter);
+
+// 7B. Supersonic Shockwave Ring & Condensation Dome
+const shockRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.92, 1.0, 64),
+  new THREE.MeshBasicMaterial({ color: 0xdbeeff, side: THREE.DoubleSide, transparent: true, opacity: 0.75 })
+);
+shockRing.rotation.x = -Math.PI / 2;
+shockRing.position.y = 0.45;
+shockRing.visible = false;
+
+const condDome = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.5),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, wireframe: false, side: THREE.DoubleSide })
+);
+condDome.visible = false;
+explosionGroup.add(shockRing, condDome);
+
+// 7C. Ground Scorch Crater
+const craterMesh = new THREE.Mesh(
+  new THREE.CircleGeometry(1, 48),
+  new THREE.MeshBasicMaterial({ color: 0x090707, transparent: true, opacity: 0.88 })
+);
+craterMesh.rotation.x = -Math.PI / 2;
+craterMesh.position.y = 0.15;
+craterMesh.visible = false;
+explosionGroup.add(craterMesh);
+
+// 7D. 4 Damage Zone Rings on Ground (Fireball, 20psi, 5psi, Thermal)
+function makeZoneRing(colorHex, yOffset) {
+  const mesh = new THREE.Mesh(
+    new THREE.RingGeometry(0.96, 1.0, 72),
+    new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = yOffset;
+  mesh.visible = false;
+  explosionGroup.add(mesh);
+  return mesh;
+}
+const zoneFireballRing = makeZoneRing(0xff2a2a, 0.25);
+const zone20Ring       = makeZoneRing(0xff6b00, 0.23);
+const zone5Ring        = makeZoneRing(0xffd000, 0.21);
+const zoneThermalRing  = makeZoneRing(0xff9e44, 0.19);
+
+// 7E. Radioactive Fallout Plume Polygon
+const falloutShape = new THREE.Shape();
+for (let i = 0; i <= 60; i++) {
+  const a = (i / 60) * Math.PI * 2;
+  const r = Math.pow(Math.cos(a / 2), 4);
+  const px = r * Math.sin(a);
+  const py = r * Math.cos(a);
+  if (i === 0) falloutShape.moveTo(px, py);
+  else falloutShape.lineTo(px, py);
+}
+const falloutGeo = new THREE.ShapeGeometry(falloutShape);
+const falloutMesh = new THREE.Mesh(
+  falloutGeo,
+  new THREE.MeshBasicMaterial({ color: 0xb44cff, transparent: true, opacity: 0.34, side: THREE.DoubleSide })
+);
+falloutMesh.rotation.x = -Math.PI / 2;
+falloutMesh.position.y = 0.18;
+falloutMesh.visible = false;
+explosionGroup.add(falloutMesh);
+
+// 7F. Volumetric-Style 3D Mushroom Cloud (Stem + Rolling Torus Cap)
+const CLOUD_PUFFS = 220;
+const puffGeo = new THREE.DodecahedronGeometry(1, 1);
+const puffMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff,
+  roughness: 0.92,
+  metalness: 0.05,
+  transparent: true,
+  opacity: 0.92
+});
+const mushroomInstanced = new THREE.InstancedMesh(puffGeo, puffMat, CLOUD_PUFFS);
+mushroomInstanced.visible = false;
+explosionGroup.add(mushroomInstanced);
+
+const puffSeeds = [];
+for (let i = 0; i < CLOUD_PUFFS; i++) {
+  puffSeeds.push({
+    isStem: i < 75,
+    angle: Math.random() * Math.PI * 2,
+    t: Math.random(),
+    speed: 0.6 + Math.random() * 0.8,
+    radiusJitter: 0.7 + Math.random() * 0.6,
+    scaleJitter: 0.75 + Math.random() * 0.65
+  });
+}
+
+// =========================================================
+// 8. PHYSICS CALCULATION & UI SYNC
+// =========================================================
+function getBlastMetrics() {
+  const y = state.yieldKt;
+  const airFactor = state.burstType === "air" ? 1.3 : 1.0;
+
+  const rFireballKm = 0.15 * Math.pow(y, 0.32);
+  const r20PsiKm    = 0.28 * Math.pow(y, 0.33) * airFactor;
+  const r5PsiKm     = 0.70 * Math.pow(y, 0.33) * airFactor;
+  const rThermalKm  = 1.20 * Math.pow(y, 0.40);
+  const falloutKm   = (state.burstType === "ground" && state.windSpeed > 0)
+    ? Math.pow(y, 0.45) * Math.pow(state.windSpeed, 0.5) * 0.95
+    : 0;
+
+  // Realistic capped metropolitan casualty model
+  const city = CITIES[state.cityKey];
+  const a20 = Math.PI * r20PsiKm * r20PsiKm;
+  const a5  = Math.max(0, Math.PI * r5PsiKm * r5PsiKm - a20);
+  const aTh = Math.max(0, Math.PI * rThermalKm * rThermalKm - (a20 + a5));
+
+  // Suburban density decays with distance
+  const rawDead = (a20 * city.density * 0.92) + (a5 * city.density * 0.35 * 0.65) + (aTh * city.density * 0.04 * 0.4);
+  const rawInj  = (a20 * city.density * 0.06) + (a5 * city.density * 0.45 * 0.65) + (aTh * city.density * 0.32 * 0.4);
+
+  const maxDead = Math.min(city.popCap * 0.68, Math.round(rawDead));
+  const maxInj  = Math.min(city.popCap * 0.30, Math.round(rawInj));
+
+  return {
+    rFireballKm, r20PsiKm, r5PsiKm, rThermalKm, falloutKm,
+    // Convert km to scene units (1 unit = 100m = 0.1km -> multiply km by 10)
+    uFireball: rFireballKm * 10,
+    u20Psi: r20PsiKm * 10,
+    u5Psi: r5PsiKm * 10,
+    uThermal: rThermalKm * 10,
+    uFallout: falloutKm * 10,
+    maxDead, maxInj
+  };
+}
+
+function updateStaticReadouts() {
+  const m = getBlastMetrics();
+  document.getElementById("yield-badge").textContent = `${state.yieldKt.toLocaleString()} kt`;
+  document.getElementById("wind-deg-badge").textContent = `${state.windDeg}°`;
+  document.getElementById("wind-spd-badge").textContent = `${state.windSpeed} km/h`;
+
+  document.getElementById("rad-fireball").textContent = `${m.rFireballKm.toFixed(2)} km`;
+  document.getElementById("rad-20psi").textContent    = `${m.r20PsiKm.toFixed(2)} km`;
+  document.getElementById("rad-5psi").textContent     = `${m.r5PsiKm.toFixed(2)} km`;
+  document.getElementById("rad-thermal").textContent  = `${m.rThermalKm.toFixed(2)} km`;
+  document.getElementById("rad-fallout").textContent  = m.falloutKm > 0 ? `${m.falloutKm.toFixed(1)} km` : "최소화 (공중폭발)";
+}
+
+// =========================================================
+// 9. FRAME-BY-FRAME ANIMATION UPDATE
+// =========================================================
+const puffColor = new THREE.Color();
+const flashOverlay = document.getElementById("flash-overlay");
+
+function renderSimulationState(p) {
+  const m = getBlastMetrics();
+  const elapsedSec = p * state.totalDuration;
+  document.getElementById("hud-time").textContent = `T+ ${elapsedSec.toFixed(1)}s`;
+  document.getElementById("timeline-slider").value = Math.round(p * 1000);
+
+  const statusEl = document.getElementById("hud-status");
+
+  // -------------------------------------------------------
+  // PHASE A: MISSILE FLIGHT (0.0 <= p < impactPoint)
+  // -------------------------------------------------------
+  if (p < state.impactPoint) {
+    state.flashTriggered = false;
+    flashOverlay.style.opacity = 0;
+    blastLight.intensity = 0;
+
+    // Hide explosion meshes
+    fireballCore.visible = false;
+    fireballOuter.visible = false;
+    shockRing.visible = false;
+    condDome.visible = false;
+    craterMesh.visible = false;
+    mushroomInstanced.visible = false;
+    zoneFireballRing.visible = false;
+    zone20Ring.visible = false;
+    zone5Ring.visible = false;
+    zoneThermalRing.visible = false;
+    falloutMesh.visible = false;
+    updateCityDestruction(0);
+
+    document.getElementById("stat-dead").textContent = "0 명";
+    document.getElementById("stat-injured").textContent = "0 명";
+    document.getElementById("hud-cloud").textContent = "0.0 km";
+
+    const flightT = p / state.impactPoint; // 0 -> 1
+    missileGroup.visible = true;
+    trajLine.visible = true;
+
+    const pos = missileCurve.getPoint(flightT);
+    const nextPos = missileCurve.getPoint(Math.min(1, flightT + 0.01));
+    missileGroup.position.copy(pos);
+    missileGroup.lookAt(nextPos);
+
+    // Exhaust flame flicker
+    const flicker = 0.85 + Math.random() * 0.45;
+    flameMesh.scale.set(1, flicker, 1);
+
+    // Update smoke trail
+    if (p > 0.002) {
+      statusEl.textContent = "탄도 비행 중";
+      statusEl.className = "tele-val status-flight";
+      trailPoints.visible = true;
+      for (let i = 0; i < TRAIL_COUNT; i++) {
+        const sampleT = Math.max(0, flightT - (i / TRAIL_COUNT) * 0.35);
+        const pt = missileCurve.getPoint(sampleT);
+        trailPositions[i * 3]     = pt.x + (Math.random() - 0.5) * 0.6;
+        trailPositions[i * 3 + 1] = pt.y + (Math.random() - 0.5) * 0.6;
+        trailPositions[i * 3 + 2] = pt.z + (Math.random() - 0.5) * 0.6;
+      }
+      trailGeo.attributes.position.needsUpdate = true;
+    } else {
+      statusEl.textContent = "발사 대기";
+      statusEl.className = "tele-val status-ready";
+      trailPoints.visible = false;
+    }
+
+    const altKm = pos.y * 0.1;
+    const mach = p > 0 ? (6.5 + flightT * 11.5) : 0;
+    document.getElementById("hud-alt").textContent = `${altKm.toFixed(1)} km`;
+    document.getElementById("hud-speed").textContent = `Mach ${mach.toFixed(1)}`;
+
+    // Camera Director during flight
+    if (state.cameraMode === "missile" || (state.cameraMode === "auto" && p > 0.002 && flightT < 0.82)) {
+      const camOffset = new THREE.Vector3(-18, 12, -16);
+      camera.position.lerp(pos.clone().add(camOffset), 0.14);
+      controls.target.lerp(pos, 0.2);
+    } else if (state.cameraMode === "auto" && flightT >= 0.82) {
+      // Pull back to dramatic impact overview right before strike
+      const viewDist = Math.max(85, m.u5Psi * 2.2);
+      camera.position.lerp(new THREE.Vector3(0, viewDist * 0.65, viewDist * 1.15), 0.12);
+      controls.target.lerp(new THREE.Vector3(0, 12, 0), 0.15);
+    } else if (state.cameraMode === "ground") {
+      camera.position.set(18, 3.2, 22);
+      controls.target.lerp(pos, 0.25);
+    }
+    return;
+  }
+
+  // -------------------------------------------------------
+  // PHASE B: DETONATION & MUSHROOM CLOUD (impactPoint <= p <= 1.0)
+  // -------------------------------------------------------
+  missileGroup.visible = false;
+  trailPoints.visible = false;
+  trajLine.visible = false;
+
+  statusEl.textContent = "핵폭발 발생!";
+  statusEl.className = "tele-val status-detonated";
+  document.getElementById("hud-alt").textContent = state.burstType === "air" ? "0.6 km (공중)" : "0.0 km (탄착)";
+  document.getElementById("hud-speed").textContent = "DETONATED";
+
+  if (!state.flashTriggered && state.phase === "playing") {
+    state.flashTriggered = true;
+    playExplosionSound();
+  }
+
+  const postT = (p - state.impactPoint) / (1.0 - state.impactPoint); // 0 -> 1
+
+  // 1. Thermal Blinding Flash (fast decay in first 12% of post-impact)
+  const flashVal = Math.max(0, 1 - postT / 0.12);
+  flashOverlay.style.opacity = (flashVal * flashVal * 0.92).toFixed(3);
+  blastLight.intensity = flashVal * 18 + Math.max(0, 1 - postT * 1.4) * 5;
+
+  // 2. Fireball Expansion & Cooling
+  const fbGrow = Math.min(1, postT / 0.18);
+  const fbRadius = Math.max(1.5, m.uFireball * (0.25 + 0.75 * Math.pow(fbGrow, 0.55)));
+  const fbHeight = state.burstType === "air" ? fbRadius * 0.85 : fbRadius * 0.35;
+
+  fireballCore.visible = postT < 0.55;
+  fireballOuter.visible = postT < 0.75;
+  fireballCore.position.set(0, fbHeight + postT * 18, 0);
+  fireballOuter.position.copy(fireballCore.position);
+
+  const coreScale = fbRadius * Math.max(0.1, 1 - postT * 1.3);
+  fireballCore.scale.set(coreScale, coreScale, coreScale);
+  fireballOuter.scale.set(fbRadius, fbRadius, fbRadius);
+  fireballOuter.material.opacity = Math.max(0, 0.72 * (1 - postT / 0.75));
+
+  // 3. Supersonic Shockwave Ring & Condensation Dome
+  const shockExpand = Math.min(1.25, postT / 0.45);
+  const currentShockR = m.uThermal * shockExpand;
+  shockRing.visible = postT < 0.55;
+  shockRing.scale.set(Math.max(1, currentShockR), Math.max(1, currentShockR), 1);
+  shockRing.material.opacity = Math.max(0, 0.85 * (1 - postT / 0.55));
+
+  condDome.visible = postT < 0.32;
+  const domeR = m.u5Psi * (postT / 0.32) * 1.3;
+  condDome.scale.set(Math.max(1, domeR), Math.max(1, domeR * 0.75), Math.max(1, domeR));
+  condDome.material.opacity = Math.max(0, 0.28 * (1 - postT / 0.32));
+
+  // Destroy 3D city buildings dynamically as the shockwave sweeps past them!
+  updateCityDestruction(currentShockR, m.uFireball, m.u20Psi, m.u5Psi);
+
+  // 4. Crater & Ground Damage Zone Rings
+  craterMesh.visible = true;
+  const cRad = Math.max(1.2, m.uFireball * 0.85);
+  craterMesh.scale.set(cRad, cRad, 1);
+
+  zoneFireballRing.visible = true;
+  zone20Ring.visible = true;
+  zone5Ring.visible = true;
+  zoneThermalRing.visible = true;
+
+  const zProg = Math.min(1, postT / 0.35);
+  zoneFireballRing.scale.set(Math.max(0.1, m.uFireball * zProg), Math.max(0.1, m.uFireball * zProg), 1);
+  zone20Ring.scale.set(Math.max(0.1, m.u20Psi * zProg), Math.max(0.1, m.u20Psi * zProg), 1);
+  zone5Ring.scale.set(Math.max(0.1, m.u5Psi * zProg), Math.max(0.1, m.u5Psi * zProg), 1);
+  zoneThermalRing.scale.set(Math.max(0.1, m.uThermal * zProg), Math.max(0.1, m.uThermal * zProg), 1);
+
+  // 5. Fallout Plume Growth
+  if (m.uFallout > 0 && postT > 0.12) {
+    falloutMesh.visible = true;
+    const fProg = Math.min(1, (postT - 0.12) / 0.88);
+    const fLen = Math.max(2, m.uFallout * fProg);
+    const fWid = fLen * 0.28;
+    falloutMesh.scale.set(fWid, fLen, 1);
+    // Align wind direction (0 deg = North -> South, 90 deg = West -> East)
+    falloutMesh.rotation.z = -THREE.MathUtils.degToRad(state.windDeg);
+  } else {
+    falloutMesh.visible = false;
+  }
+
+  // 6. Towering 3D Mushroom Cloud (Stem + Rolling Toroidal Cap)
+  mushroomInstanced.visible = true;
+  const cloudMaxH = Math.min(155, Math.max(24, m.uFireball * 4.5));
+  const cloudCapR = Math.min(95, Math.max(11, m.uFireball * 2.1));
+  const riseProgress = Math.pow(postT, 0.62);
+  const currentCloudTop = cloudMaxH * riseProgress;
+  document.getElementById("hud-cloud").textContent = `${(currentCloudTop * 0.1).toFixed(1)} km`;
+
+  // Wind drift offset at high altitude
+  const windRad = THREE.MathUtils.degToRad(state.windDeg);
+  const driftTotal = (state.windSpeed * 0.22) * postT;
+  const driftX = Math.sin(windRad) * driftTotal;
+  const driftZ = -Math.cos(windRad) * driftTotal;
+
+  for (let i = 0; i < CLOUD_PUFFS; i++) {
+    const s = puffSeeds[i];
+    if (s.isStem) {
+      // Rising central column with base suction flare
+      const hNorm = (s.t + postT * 0.45 * s.speed) % 1.0;
+      const y = hNorm * currentCloudTop * 0.82;
+      const flare = hNorm < 0.2 ? (1.8 - hNorm * 4) : 1.0;
+      const stemR = cloudCapR * 0.22 * flare * s.radiusJitter;
+      const theta = s.angle + postT * 2.2 * s.speed;
+
+      dummy.position.set(
+        Math.cos(theta) * stemR + driftX * hNorm,
+        y + 1.2,
+        Math.sin(theta) * stemR + driftZ * hNorm
+      );
+      const pScale = cloudCapR * 0.24 * s.scaleJitter * Math.min(1, postT * 4);
+      dummy.scale.set(pScale, pScale * 0.85, pScale);
+
+      // Hot glowing core early on, cooling to dark ash smoke
+      const heat = Math.max(0, 1 - postT * 1.45) * (1 - hNorm * 0.4);
+      puffColor.setRGB(
+        0.26 + heat * 0.74,
+        0.24 + heat * 0.34,
+        0.25 + heat * 0.05
+      );
+    } else {
+      // Rolling Mushroom Cap (Torus Vortex)
+      const torusAngle = s.angle + postT * 1.1;
+      const rollPhase = (s.t * Math.PI * 2) + postT * 4.5 * s.speed;
+      const majorR = cloudCapR * (0.58 + 0.32 * riseProgress) * s.radiusJitter;
+      const minorR = cloudCapR * (0.32 + 0.16 * riseProgress);
+
+      const radial = majorR + Math.cos(rollPhase) * minorR;
+      const yOffset = Math.sin(rollPhase) * minorR * 0.72;
+
+      dummy.position.set(
+        Math.cos(torusAngle) * radial + driftX,
+        currentCloudTop * 0.84 + yOffset,
+        Math.sin(torusAngle) * radial + driftZ
+      );
+      const capScale = cloudCapR * 0.36 * s.scaleJitter * Math.min(1, postT * 3.5);
+      dummy.scale.set(capScale, capScale * 0.78, capScale);
+
+      // Inner underside glows fiery orange; top outer cloud is bright sunlit smoke
+      const underGlow = Math.max(0, -Math.sin(rollPhase)) * Math.max(0, 1 - postT * 1.35);
+      const topHighlight = Math.max(0, Math.sin(rollPhase)) * 0.38;
+      puffColor.setRGB(
+        Math.min(1, 0.48 + topHighlight + underGlow * 0.52),
+        Math.min(1, 0.45 + topHighlight + underGlow * 0.22),
+        Math.min(1, 0.46 + topHighlight)
+      );
+    }
+
+    dummy.rotation.set(s.angle, postT, s.t);
+    dummy.updateMatrix();
+    mushroomInstanced.setMatrixAt(i, dummy.matrix);
+    mushroomInstanced.setColorAt(i, puffColor);
+  }
+  mushroomInstanced.instanceMatrix.needsUpdate = true;
+  if (mushroomInstanced.instanceColor) mushroomInstanced.instanceColor.needsUpdate = true;
+
+  // 7. Live Casualty Counter Progression
+  const casProg = Math.min(1, postT / 0.55);
+  const curDead = Math.round(m.maxDead * casProg);
+  const curInj  = Math.round(m.maxInj * casProg);
+  document.getElementById("stat-dead").textContent = `${curDead.toLocaleString()} 명`;
+  document.getElementById("stat-injured").textContent = `${curInj.toLocaleString()} 명`;
+
+  // 8. Camera Shake & Auto Director Pullback
+  if (state.cameraMode === "auto") {
+    const targetDist = Math.max(95, Math.min(460, m.u5Psi * 2.4 + currentCloudTop * 1.3));
+    const desiredCam = new THREE.Vector3(targetDist * 0.45, targetDist * 0.55, targetDist * 1.05);
+    camera.position.lerp(desiredCam, 0.045);
+    controls.target.lerp(new THREE.Vector3(0, currentCloudTop * 0.35, 0), 0.06);
+  } else if (state.cameraMode === "ground") {
+    camera.position.set(22, 3.2, 26);
+    controls.target.lerp(new THREE.Vector3(0, currentCloudTop * 0.48, 0), 0.08);
+  }
+
+  // Camera shake right at detonation
+  if (postT < 0.08 && state.phase === "playing") {
+    const shake = (1 - postT / 0.08) * 2.2;
+    camera.position.x += (Math.random() - 0.5) * shake;
+    camera.position.y += (Math.random() - 0.5) * shake;
+  }
+}
+
+// =========================================================
+// 10. UI EVENT LISTENERS
+// =========================================================
+document.getElementById("target-select").addEventListener("change", (e) => {
+  state.cityKey = e.target.value;
+  loadRealMapTiles();
+  generateCityBuildings();
+  updateStaticReadouts();
+  renderSimulationState(state.progress);
+});
+
+document.getElementById("weapon-select").addEventListener("change", (e) => {
+  if (e.target.value !== "custom") {
+    state.yieldKt = parseFloat(e.target.value);
+    document.getElementById("yield-slider").value = yieldToSlider(state.yieldKt);
+  }
+  updateStaticReadouts();
+  renderSimulationState(state.progress);
+});
+
+document.getElementById("yield-slider").addEventListener("input", (e) => {
+  state.yieldKt = sliderToYield(parseInt(e.target.value, 10));
+  document.getElementById("weapon-select").value = "custom";
+  updateStaticReadouts();
+  renderSimulationState(state.progress);
+});
+
+document.getElementById("btn-ground").addEventListener("click", () => {
+  state.burstType = "ground";
+  document.getElementById("btn-ground").classList.add("active");
+  document.getElementById("btn-air").classList.remove("active");
+  updateStaticReadouts();
+  renderSimulationState(state.progress);
+});
+
+document.getElementById("btn-air").addEventListener("click", () => {
+  state.burstType = "air";
+  document.getElementById("btn-air").classList.add("active");
+  document.getElementById("btn-ground").classList.remove("active");
+  updateStaticReadouts();
+  renderSimulationState(state.progress);
+});
+
+document.getElementById("btn-map-dark").addEventListener("click", () => {
+  state.mapStyle = "dark";
+  document.getElementById("btn-map-dark").classList.add("active");
+  document.getElementById("btn-map-sat").classList.remove("active");
+  loadRealMapTiles();
+});
+
+document.getElementById("btn-map-sat").addEventListener("click", () => {
+  state.mapStyle = "sat";
+  document.getElementById("btn-map-sat").classList.add("active");
+  document.getElementById("btn-map-dark").classList.remove("active");
+  loadRealMapTiles();
+});
+
+document.getElementById("wind-deg").addEventListener("input", (e) => {
+  state.windDeg = parseInt(e.target.value, 10);
+  updateStaticReadouts();
+  renderSimulationState(state.progress);
+});
+
+document.getElementById("wind-spd").addEventListener("input", (e) => {
+  state.windSpeed = parseInt(e.target.value, 10);
+  updateStaticReadouts();
+  renderSimulationState(state.progress);
+});
+
+document.getElementById("launch-btn").addEventListener("click", () => {
+  state.progress = 0.003;
+  state.phase = "playing";
+  state.flashTriggered = false;
+  document.getElementById("pause-btn").textContent = "⏸ 일시정지";
+  playLaunchSound();
+});
+
+document.getElementById("pause-btn").addEventListener("click", () => {
+  if (state.phase === "playing") {
+    state.phase = "paused";
+    document.getElementById("pause-btn").textContent = "▶ 계속재생";
+  } else if (state.phase === "paused") {
+    state.phase = "playing";
+    document.getElementById("pause-btn").textContent = "⏸ 일시정지";
+  }
+});
+
+document.getElementById("reset-btn").addEventListener("click", () => {
+  state.phase = "ready";
+  state.progress = 0.0;
+  state.flashTriggered = false;
+  document.getElementById("pause-btn").textContent = "⏸ 일시정지";
+  camera.position.set(0, 145, 220);
+  controls.target.set(0, 10, 0);
+  renderSimulationState(0);
+});
+
+document.getElementById("sound-btn").addEventListener("click", (e) => {
+  state.soundEnabled = !state.soundEnabled;
+  e.target.textContent = state.soundEnabled ? "🔊 효과음 ON" : "🔇 효과음 OFF";
+});
+
+document.getElementById("timeline-slider").addEventListener("input", (e) => {
+  state.phase = "paused";
+  document.getElementById("pause-btn").textContent = "▶ 계속재생";
+  state.progress = parseInt(e.target.value, 10) / 1000;
+  renderSimulationState(state.progress);
+});
+
+document.querySelectorAll(".cam-pill").forEach(pill => {
+  pill.addEventListener("click", () => {
+    document.querySelectorAll(".cam-pill").forEach(p => p.classList.remove("active"));
+    pill.classList.add("active");
+    state.cameraMode = pill.getAttribute("data-cam");
+  });
+});
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// =========================================================
+// 11. MAIN 60FPS RENDER LOOP
+// =========================================================
+let lastTime = performance.now();
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+
+  // Pulse target reticle
+  const pulse = 1 + Math.sin(now * 0.005) * 0.14;
+  retRing1.scale.set(pulse, pulse, 1);
+
+  if (state.phase === "playing") {
+    state.progress += dt / state.totalDuration;
+    if (state.progress >= 1.0) {
+      state.progress = 1.0;
+      state.phase = "finished";
+    }
+    renderSimulationState(state.progress);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// Boot
+loadRealMapTiles();
+generateCityBuildings();
+updateStaticReadouts();
+renderSimulationState(0);
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
