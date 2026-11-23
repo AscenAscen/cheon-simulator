@@ -3,92 +3,60 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Gemini Strategic Arsenal - Diorama Edition</title>
+<title>Gemini Strategic Arsenal - Pro Diorama</title>
 <style>
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
   html, body {
     width: 100%; height: 100%; min-height: 820px; overflow: hidden;
-    background: #eef2f5; /* 밝은 스튜디오 배경 */
-    font-family: 'Pretendard', sans-serif; color: #333;
+    background: #eef2f5; font-family: 'Pretendard', sans-serif; color: #333;
   }
   #canvas-container { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
   .targeting-mode #canvas-container { cursor: crosshair !important; }
   
-  /* Tilt-Shift / Vignette Effect (아웃포커싱 미니어처 효과) */
   #tilt-shift-overlay {
     position: absolute; inset: 0; pointer-events: none; z-index: 10;
     background: radial-gradient(circle, transparent 40%, rgba(238,242,245,0.7) 120%);
     box-shadow: inset 0 0 80px rgba(255,255,255,0.8);
   }
-
-  /* Thermal Flash Overlay */
   #flash-overlay {
     position: absolute; inset: 0; pointer-events: none; z-index: 30;
     background: radial-gradient(circle, #ffffff 0%, #ffeedd 50%, transparent 100%);
     opacity: 0; transition: opacity 0.05s linear;
   }
   
-  /* Clean Light Theme UI */
   .glass-panel {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
   }
   
-  /* Top Telemetry */
-  #top-hud {
-    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 24px; padding: 12px 32px; z-index: 20;
-  }
+  /* Top HUD */
+  #top-hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 24px; padding: 12px 32px; z-index: 20; }
   .tele-item { text-align: center; min-width: 90px; }
   .tele-label { font-size: 10px; color: #888; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px; }
   .tele-val { font-size: 16px; font-weight: 800; font-family: monospace; letter-spacing: 1px; color: #111; }
-  .status-ready { color: #007aff; }
-  .status-flight { color: #ff9500; }
-  .status-detonated { color: #ff3b30; }
+  .status-ready { color: #007aff; } .status-flight { color: #ff9500; } .status-detonated { color: #ff3b30; }
 
   /* Left Panel */
-  #left-panel {
-    position: absolute; top: 20px; left: 20px; width: 310px;
-    max-height: calc(100vh - 100px); overflow-y: auto; padding: 20px; z-index: 20;
-  }
-  #left-panel::-webkit-scrollbar { width: 5px; }
-  #left-panel::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-
-  .panel-title {
-    font-size: 16px; font-weight: 800; color: #111;
-    margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #eee;
-  }
+  #left-panel { position: absolute; top: 20px; left: 20px; width: 310px; max-height: calc(100vh - 100px); overflow-y: auto; padding: 20px; z-index: 20; }
+  #left-panel::-webkit-scrollbar { width: 5px; } #left-panel::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+  .panel-title { font-size: 16px; font-weight: 800; color: #111; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #eee; }
   .section-lbl { font-size: 11px; font-weight: 700; color: #555; margin: 16px 0 8px 0; }
   
-  select, input[type="range"] {
-    width: 100%; background: #f5f5f7; color: #333;
-    border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 12px; font-weight: 600; outline: none;
-    transition: 0.2s;
+  select, input[type="range"], input[type="number"] {
+    width: 100%; background: #f5f5f7; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 12px; font-weight: 600; outline: none; transition: 0.2s;
   }
-  select:focus { border-color: #007aff; background: #fff; }
+  select:focus, input[type="number"]:focus { border-color: #007aff; background: #fff; }
   input[type="range"] { padding: 0; accent-color: #007aff; cursor: pointer; }
 
   .row-between { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 4px; color: #444; font-weight: 600;}
   .badge-val { background: #e5f1ff; padding: 3px 8px; border-radius: 6px; font-weight: 700; color: #007aff; font-family: monospace; }
 
-  /* Target Mode Button */
-  #btn-target-mode {
-    width: 100%; margin-top: 8px; padding: 10px; border: 1.5px dashed #007aff; border-radius: 8px;
-    background: #f0f7ff; color: #007aff; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;
-  }
+  #btn-target-mode { width: 100%; margin-top: 8px; padding: 10px; border: 1.5px dashed #007aff; border-radius: 8px; background: #f0f7ff; color: #007aff; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
   #btn-target-mode:hover { background: #e0f0ff; }
   #btn-target-mode.active { background: #ffe5e5; border-color: #ff3b30; color: #ff3b30; border-style: solid; animation: pulse 1.5s infinite; }
 
-  /* MIRV Toggle */
-  .mirv-container {
-    margin-top: 12px; padding: 12px; background: #fff8f0; border: 1px solid #ffe0b2; border-radius: 8px;
-    display: flex; align-items: center; justify-content: space-between; cursor: pointer;
-  }
+  .mirv-container { margin-top: 12px; padding: 12px; background: #fff8f0; border: 1px solid #ffe0b2; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
   .mirv-label { font-size: 12px; font-weight: 700; color: #d97706; }
   .toggle-switch { width: 38px; height: 20px; background: #ddd; border-radius: 10px; position: relative; transition: 0.3s; }
   .toggle-knob { width: 16px; height: 16px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
@@ -96,11 +64,7 @@
   #mirv-check:checked + .toggle-switch { background: #ff9500; }
   #mirv-check:checked + .toggle-switch .toggle-knob { transform: translateX(18px); }
 
-  #launch-btn {
-    width: 100%; margin-top: 20px; padding: 14px; border: none; border-radius: 8px;
-    background: #ff3b30; color: #fff; font-size: 15px; font-weight: 800;
-    cursor: pointer; box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3); transition: all 0.2s;
-  }
+  #launch-btn { width: 100%; margin-top: 20px; padding: 14px; border: none; border-radius: 8px; background: #ff3b30; color: #fff; font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3); transition: all 0.2s; }
   #launch-btn:hover { background: #e6352b; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255, 59, 48, 0.4); }
   #launch-btn:active { transform: translateY(1px); }
 
@@ -114,8 +78,7 @@
   .stat-card.orange { border-left-color: #ff9500; }
   .stat-lbl { font-size: 11px; color: #777; font-weight: 700; }
   .stat-num { font-size: 24px; font-weight: 800; font-family: monospace; margin-top: 6px; }
-  .stat-num.red { color: #ff3b30; }
-  .stat-num.org { color: #ff9500; }
+  .stat-num.red { color: #ff3b30; } .stat-num.org { color: #ff9500; }
 
   .zone-list { margin-top: 12px; }
   .zone-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; padding: 8px 0; border-bottom: 1px solid #eee; }
@@ -123,16 +86,10 @@
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
 
   /* Bottom Bar */
-  #bottom-bar {
-    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-    width: min(800px, calc(100% - 40px)); padding: 14px 24px; z-index: 20; display: flex; align-items: center; gap: 16px;
-  }
+  #bottom-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: min(800px, calc(100% - 40px)); padding: 14px 24px; z-index: 20; display: flex; align-items: center; gap: 16px; }
   #timeline-slider { flex: 1; accent-color: #007aff; height: 4px; }
   .cam-pills { display: flex; gap: 8px; }
-  .cam-pill {
-    background: #fff; border: 1px solid #ccc; color: #555; border-radius: 6px;
-    padding: 8px 14px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s;
-  }
+  .cam-pill { background: #fff; border: 1px solid #ccc; color: #555; border-radius: 6px; padding: 8px 14px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; }
   .cam-pill.active { background: #007aff; border-color: #007aff; color: #fff; box-shadow: 0 4px 10px rgba(0,122,255,0.2); }
 
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); } }
@@ -155,11 +112,11 @@
 
 <!-- Left Panel -->
 <div id="left-panel" class="glass-panel">
-  <div class="panel-title">🏛️ Diorama Arsenal Command</div>
+  <div class="panel-title">🏛️ Diorama Arsenal Pro</div>
 
   <div class="section-lbl">1. TARGET COORDINATES</div>
   <select id="target-select">
-    <option value="seoul" selected>[KOR] 서울 청계천 일대</option>
+    <option value="seoul" selected>[KOR] 서울 청계광장/종각</option>
     <option value="pyongyang">[PRK] 평양 김일성광장</option>
     <option value="tokyo">[JPN] 도쿄 신주쿠</option>
   </select>
@@ -179,10 +136,14 @@
   </div>
 
   <label class="mirv-container">
-    <span class="mirv-label">☄️ 다탄두 (MIRV) 5기 분산타격</span>
+    <span class="mirv-label">☄️ 다탄두 (MIRV) 분산타격</span>
     <input type="checkbox" id="mirv-check" />
     <div class="toggle-switch"><div class="toggle-knob"></div></div>
   </label>
+  <div id="mirv-count-wrap" style="display:none; margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+    <span style="font-size:12px; font-weight:700; color:#555;">탄두 개수 설정:</span>
+    <input type="number" id="mirv-count-input" min="2" max="14" value="5" style="width:70px; padding:6px; text-align:center;">
+  </div>
 
   <div class="section-lbl">3. ATMOSPHERICS</div>
   <div class="row-between"><span>Wind Direction</span><span id="wind-deg-badge" class="badge-val">90°</span></div>
@@ -224,12 +185,11 @@
   <span style="font-size:11px; font-weight:800; color:#555;">TIMELINE</span>
   <input type="range" id="timeline-slider" min="0" max="1000" value="0" />
   <div class="cam-pills">
-    <div class="cam-pill active" data-cam="diorama">DIORAMA (ISOMETRIC)</div>
+    <div class="cam-pill active" data-cam="diorama">DIORAMA</div>
     <div class="cam-pill" data-cam="orbit">FREE ORBIT</div>
   </div>
 </div>
 
-<!-- Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
@@ -247,42 +207,51 @@ let state = {
   cityKey: "seoul",
   yieldKt: 50,
   isMIRV: false,
+  mirvCount: 5,
   windDeg: 90,
   windSpeed: 30,
-  cameraMode: "diorama", // diorama (orthographic) or orbit
-
+  cameraMode: "diorama",
   phase: "ready", 
   progress: 0.0,
   totalDuration: 18.0,
   impactPoint: 0.30,
-
   isTargetingMode: false,
   targetPos: new THREE.Vector3(0, 0, 0)
 };
 
-const WORLD_SIZE = 800; // 80km
-const MIRV_COUNT = 5;
+const WORLD_SIZE = 1400; // 넓어진 베이스 140km 커버
+const VISUAL_SCALE = 15; // km to units scale
+
+function sliderToYield(v) {
+  const minLog = Math.log(1);
+  const maxLog = Math.log(50000);
+  const val = Math.exp(minLog + (maxLog - minLog) * ((v - 1) / 99));
+  return val < 10 ? Math.round(val * 10) / 10 : Math.round(val);
+}
+function yieldToSlider(y) {
+  const minLog = Math.log(1);
+  const maxLog = Math.log(50000);
+  return Math.round(1 + 99 * ((Math.log(Math.max(1, y)) - minLog) / (maxLog - minLog)));
+}
 
 // ==========================================
 // 2. SCENE, RENDERER, ORTHOGRAPHIC CAMERA
 // ==========================================
 const container = document.getElementById("canvas-container");
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeef2f5); // 밝고 부드러운 스튜디오 배경
-scene.fog = new THREE.Fog(0xeef2f5, 300, 1000);
+scene.background = new THREE.Color(0xeef2f5);
+scene.fog = new THREE.Fog(0xeef2f5, 400, 1400);
 
-// 미니어처 룩을 위한 아이소메트릭(직교) 카메라 설정
 const aspect = window.innerWidth / window.innerHeight;
-const frustumSize = 250; 
-const camera = new THREE.OrthographicCamera(-frustumSize * aspect, frustumSize * aspect, frustumSize, -frustumSize, 1, 2000);
-camera.position.set(200, 250, 200); 
+const frustumSize = 350; 
+const camera = new THREE.OrthographicCamera(-frustumSize * aspect, frustumSize * aspect, frustumSize, -frustumSize, 1, 3000);
+camera.position.set(300, 350, 300); 
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // 내장그래픽 최적화
-renderer.shadowMap.enabled = true; // 자연스러운 그림자
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.NoToneMapping;
 container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -291,20 +260,20 @@ controls.maxPolarAngle = Math.PI / 2.1;
 controls.target.set(0, 0, 0);
 
 // ==========================================
-// 3. NATURAL DAYLIGHTING (Studio / Daylight)
+// 3. DAYLIGHTING (Studio / Daylight)
 // ==========================================
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcadcfa, 0.7); // 하늘빛, 땅반사빛
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcadcfa, 0.7); 
 scene.add(hemiLight);
 
-const dirLight = new THREE.DirectionalLight(0xfffaea, 0.85); // 따뜻한 태양광
-dirLight.position.set(150, 250, -100);
+const dirLight = new THREE.DirectionalLight(0xfffaea, 0.85); 
+dirLight.position.set(200, 300, -100);
 dirLight.castShadow = true;
-const d = 250;
+const d = 400;
 dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d;
 dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
-dirLight.shadow.camera.far = 1000;
+dirLight.shadow.camera.far = 1500;
 dirLight.shadow.bias = -0.0005;
-dirLight.shadow.mapSize.width = 1024; // 퍼포먼스 고려
+dirLight.shadow.mapSize.width = 1024;
 dirLight.shadow.mapSize.height = 1024;
 scene.add(dirLight);
 
@@ -314,7 +283,6 @@ scene.add(ambientLight);
 // ==========================================
 // 4. DIORAMA ENVIRONMENT (Architectural Model)
 // ==========================================
-// Base Pedestal (모형 받침대)
 const baseGeo = new THREE.CylinderGeometry(WORLD_SIZE/2, WORLD_SIZE/2, 20, 64);
 const baseMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
 const baseMesh = new THREE.Mesh(baseGeo, baseMat);
@@ -322,7 +290,6 @@ baseMesh.position.y = -10.1;
 baseMesh.receiveShadow = true;
 scene.add(baseMesh);
 
-// Ground Plane (모형 바닥면 - 파스텔톤 클레이 느낌)
 const groundGeo = new THREE.CircleGeometry(WORLD_SIZE/2, 64);
 groundGeo.rotateX(-Math.PI/2);
 const groundMat = new THREE.MeshLambertMaterial({ color: 0xdde6ed });
@@ -330,27 +297,29 @@ const groundPlane = new THREE.Mesh(groundGeo, groundMat);
 groundPlane.receiveShadow = true;
 scene.add(groundPlane);
 
-// River (청계천 느낌 곡선 데칼)
-const riverShape = new THREE.Shape();
-riverShape.moveTo(-WORLD_SIZE/2, -10);
-riverShape.bezierCurveTo(-100, 30, 100, -30, WORLD_SIZE/2, 10);
-riverShape.lineTo(WORLD_SIZE/2, 40);
-riverShape.bezierCurveTo(100, 0, -100, 60, -WORLD_SIZE/2, 20);
-const riverGeo = new THREE.ShapeGeometry(riverShape);
-const riverMat = new THREE.MeshLambertMaterial({ color: 0xa4c8e1, depthWrite: false });
-const riverMesh = new THREE.Mesh(riverGeo, riverMat);
-riverMesh.rotation.x = -Math.PI/2;
-riverMesh.position.y = 0.2;
-scene.add(riverMesh);
+// Grid on base for tactical feel
+const grid = new THREE.PolarGridHelper(WORLD_SIZE/2, 16, 8, 64, 0xb0c4de, 0xcadcfa);
+grid.position.y = 0.1;
+scene.add(grid);
 
-// Clay Buildings (InstancedMesh - 무광 화이트 모형)
-const BLDG_COUNT = 1500;
+// City Blocks (Map Decal Style)
+const cityBlockMat = new THREE.MeshBasicMaterial({ color: 0xc4d3df });
+for(let i=0; i<8; i++){
+  const r = 50 + Math.random()*200;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(r, r*0.8), cityBlockMat);
+  mesh.rotation.x = -Math.PI/2;
+  mesh.position.set((Math.random()-0.5)*300, 0.2, (Math.random()-0.5)*300);
+  mesh.rotation.z = Math.random()*Math.PI;
+  scene.add(mesh);
+}
+
+// 3D Buildings - White Clay
+const BLDG_COUNT = 2000;
 const bldgGeo = new THREE.BoxGeometry(1, 1, 1);
 bldgGeo.translate(0, 0.5, 0);
-const bldgMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); // 깨끗한 화이트 클레이
+const bldgMat = new THREE.MeshLambertMaterial({ color: 0xffffff }); 
 const cityMesh = new THREE.InstancedMesh(bldgGeo, bldgMat, BLDG_COUNT);
-cityMesh.castShadow = true;
-cityMesh.receiveShadow = true;
+cityMesh.castShadow = true; cityMesh.receiveShadow = true;
 scene.add(cityMesh);
 
 const bldgData = [];
@@ -363,11 +332,10 @@ function initCity() {
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
     
-    // 강 주변(0,0 근처)은 빌딩을 높게, 외곽은 낮게
-    const core = Math.max(0.1, 1 - dist / 150);
-    const w = 1.0 + Math.random() * 2.5;
-    const d = 1.0 + Math.random() * 2.5;
-    const h = (1.5 + Math.random() * 12.0) * core + 0.5;
+    const core = Math.max(0.1, 1 - dist / 200);
+    const w = 1.0 + Math.random() * 3.5;
+    const d = 1.0 + Math.random() * 3.5;
+    const h = (2.0 + Math.random() * 15.0) * core + 1.0;
     
     bldgData.push({ x, z, w, d, h, dist, originalH: h });
     
@@ -392,45 +360,69 @@ function resetCity() {
   cityMesh.instanceMatrix.needsUpdate = true;
 }
 
-// Target Reticle (심플한 빨간 과녁 핀)
+// Target Reticle
 const reticleGrp = new THREE.Group();
-const pinGeo = new THREE.CylinderGeometry(0, 1.5, 4, 16);
-pinGeo.translate(0, 2, 0);
+const pinGeo = new THREE.CylinderGeometry(0, 2, 6, 16);
+pinGeo.translate(0, 3, 0);
 const pinMat = new THREE.MeshLambertMaterial({color: 0xff3b30});
 const pinMesh = new THREE.Mesh(pinGeo, pinMat);
 pinMesh.position.y = 1;
 pinMesh.castShadow = true;
-const ringMesh = new THREE.Mesh(
-  new THREE.RingGeometry(2.5, 3.5, 32), 
-  new THREE.MeshBasicMaterial({color: 0xff3b30, transparent: true, opacity: 0.6})
-);
-ringMesh.rotation.x = -Math.PI/2;
-ringMesh.position.y = 0.5;
+const ringMesh = new THREE.Mesh(new THREE.RingGeometry(4, 5, 32), new THREE.MeshBasicMaterial({color: 0xff3b30, transparent: true, opacity: 0.6}));
+ringMesh.rotation.x = -Math.PI/2; ringMesh.position.y = 0.5;
 reticleGrp.add(pinMesh, ringMesh);
 scene.add(reticleGrp);
 
 // ==========================================
-// 5. MIRV TRAJECTORY (Pastel Trails)
+// 5. MIRV TRAJECTORY & VFX POOL
 // ==========================================
-const launchOrigin = new THREE.Vector3(-300, 0, -250);
-const apexHeight = 250;
+const launchOrigin = new THREE.Vector3(-450, 0, -350);
+const apexHeight = 350;
 
 let trajectories = [];
 const missileMeshes = [];
 const trailMeshes = [];
+const explosions = [];
 
-const mBodyGeo = new THREE.CylinderGeometry(0.6, 0.6, 4, 8);
+const mBodyGeo = new THREE.CylinderGeometry(0.8, 0.8, 5, 8);
 mBodyGeo.rotateX(Math.PI/2);
-const mMat = new THREE.MeshLambertMaterial({color: 0x555555}); // 진회색 탄두 모형
+const mMat = new THREE.MeshLambertMaterial({color: 0x555555});
 const tMat = new THREE.LineBasicMaterial({color: 0xff9500, transparent: true, opacity: 0.7});
 
-function buildTrajectories() {
-  missileMeshes.forEach(m => scene.remove(m));
-  trailMeshes.forEach(t => scene.remove(t));
-  missileMeshes.length = 0; trailMeshes.length = 0; trajectories.length = 0;
+const fbMatInner = new THREE.MeshBasicMaterial({color: 0xffffee});
+const fbMatOuter = new THREE.MeshLambertMaterial({color: 0xff6b00, transparent: true, opacity:0.85});
+const shockMat = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity:0.6});
+const ringGeo2 = new THREE.RingGeometry(0.9, 1.0, 64); ringGeo2.rotateX(-Math.PI/2);
+const sphereGeo = new THREE.SphereGeometry(1, 32, 32);
 
-  const count = state.isMIRV ? MIRV_COUNT : 1;
-  const spread = 25.0; 
+// Pool for max 14 MIRVs
+for(let i=0; i<14; i++){
+  // Missiles
+  const mMesh = new THREE.Mesh(mBodyGeo, mMat);
+  mMesh.castShadow = true; mMesh.visible = false;
+  scene.add(mMesh); missileMeshes.push(mMesh);
+
+  const tGeo = new THREE.BufferGeometry();
+  tGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(50 * 3), 3));
+  const tLine = new THREE.Line(tGeo, tMat);
+  tLine.visible = false;
+  scene.add(tLine); trailMeshes.push(tLine);
+
+  // Explosions
+  const grp = new THREE.Group();
+  const c = new THREE.Mesh(sphereGeo, fbMatInner);
+  const o = new THREE.Mesh(sphereGeo, fbMatOuter);
+  const s = new THREE.Mesh(ringGeo2, shockMat);
+  s.position.y = 0.5;
+  grp.add(c, o, s); grp.visible = false;
+  scene.add(grp);
+  explosions.push({ group: grp, core: c, outer: o, shock: s });
+}
+
+function buildTrajectories() {
+  trajectories.length = 0;
+  const count = state.isMIRV ? state.mirvCount : 1;
+  const spread = 45.0 + (count*2); // 탄두 개수에 비례해 분산 반경 증가
 
   for (let i=0; i<count; i++) {
     let tPos = state.targetPos.clone();
@@ -439,62 +431,20 @@ function buildTrajectories() {
       tPos.x += Math.cos(angle) * spread;
       tPos.z += Math.sin(angle) * spread;
     }
-    
     const midX = (launchOrigin.x + tPos.x)/2;
     const midZ = (launchOrigin.z + tPos.z)/2;
-    const curve = new THREE.QuadraticBezierCurve3(launchOrigin, new THREE.Vector3(midX, apexHeight, midZ), tPos);
-    trajectories.push(curve);
-
-    const mMesh = new THREE.Mesh(mBodyGeo, mMat);
-    mMesh.castShadow = true;
-    mMesh.visible = false;
-    scene.add(mMesh);
-    missileMeshes.push(mMesh);
-
-    const tGeo = new THREE.BufferGeometry();
-    tGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(50 * 3), 3));
-    const tLine = new THREE.Line(tGeo, tMat);
-    tLine.visible = false;
-    scene.add(tLine);
-    trailMeshes.push(tLine);
+    trajectories.push(new THREE.QuadraticBezierCurve3(launchOrigin, new THREE.Vector3(midX, apexHeight, midZ), tPos));
   }
 }
 buildTrajectories();
 
-// ==========================================
-// 6. EXPLOSION VFX (Soft Clay/Cloud style, NO BLOOM)
-// ==========================================
-const explosions = [];
-// 밝은 톤의 램버트/베이직 재질로 클레이 느낌의 폭발 구현
-const fbMatInner = new THREE.MeshBasicMaterial({color: 0xffffee});
-const fbMatOuter = new THREE.MeshLambertMaterial({color: 0xff6b00, transparent: true, opacity:0.85});
-const shockMat = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity:0.6});
-const ringGeo = new THREE.RingGeometry(0.9, 1.0, 64);
-ringGeo.rotateX(-Math.PI/2);
-const sphereGeo = new THREE.SphereGeometry(1, 32, 32);
-
-for(let i=0; i<5; i++){
-  const grp = new THREE.Group();
-  const c = new THREE.Mesh(sphereGeo, fbMatInner);
-  const o = new THREE.Mesh(sphereGeo, fbMatOuter);
-  const s = new THREE.Mesh(ringGeo, shockMat);
-  s.position.y = 0.5;
-  grp.add(c, o, s);
-  grp.visible = false;
-  scene.add(grp);
-  explosions.push({ group: grp, core: c, outer: o, shock: s });
-}
-
-// 방사능 낙진 플룸 (보라색 파스텔)
 const falloutMat = new THREE.MeshBasicMaterial({color: 0x9b59b6, transparent: true, opacity: 0.25, side: THREE.DoubleSide});
 const falloutMesh = new THREE.Mesh(new THREE.PlaneGeometry(1,1), falloutMat);
-falloutMesh.rotation.x = -Math.PI/2;
-falloutMesh.position.y = 0.4;
-falloutMesh.visible = false;
+falloutMesh.rotation.x = -Math.PI/2; falloutMesh.position.y = 0.4; falloutMesh.visible = false;
 scene.add(falloutMesh);
 
 // ==========================================
-// 7. AUDIO (Web Audio API - Launch & Boom)
+// 6. AUDIO
 // ==========================================
 let audioCtx = null;
 function initAudio() {
@@ -502,32 +452,25 @@ function initAudio() {
   if(audioCtx.state === "suspended") audioCtx.resume();
 }
 function playSound(type) {
-  initAudio();
-  if(!audioCtx) return;
+  initAudio(); if(!audioCtx) return;
   const now = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain); gain.connect(audioCtx.destination);
   
   if (type === 'launch') {
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(150, now);
-    osc.frequency.exponentialRampToValueAtTime(40, now + 2);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 2);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 2);
+    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 2);
     osc.start(now); osc.stop(now+2);
   } else if (type === 'boom') {
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(60, now);
-    osc.frequency.exponentialRampToValueAtTime(10, now + 3);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 3);
+    osc.type = 'square'; osc.frequency.setValueAtTime(60, now); osc.frequency.exponentialRampToValueAtTime(10, now + 3);
+    gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 3);
     osc.start(now); osc.stop(now+3);
   }
 }
 
 // ==========================================
-// 8. LOGIC & PHYSICS
+// 7. PHYSICS & LOGIC
 // ==========================================
 function getMetrics() {
   const y = state.yieldKt;
@@ -537,18 +480,18 @@ function getMetrics() {
   const rt = 1.20 * Math.pow(y, 0.40);
   const fl = state.windSpeed > 0 ? Math.pow(y, 0.45) * Math.pow(state.windSpeed, 0.5) * 0.95 : 0;
 
-  const mult = state.isMIRV ? 2.5 : 1.0;
+  const countMult = state.isMIRV ? (1 + (state.mirvCount*0.25)) : 1.0;
   const city = CITIES[state.cityKey];
-  const a20 = Math.PI * Math.pow(r20, 2) * mult;
-  const a5  = Math.max(0, Math.PI * Math.pow(r5, 2) * mult - a20);
-  const aTh = Math.max(0, Math.PI * Math.pow(rt, 2) * mult - (a20+a5));
+  const a20 = Math.PI * Math.pow(r20, 2) * countMult;
+  const a5  = Math.max(0, Math.PI * Math.pow(r5, 2) * countMult - a20);
+  const aTh = Math.max(0, Math.PI * Math.pow(rt, 2) * countMult - (a20+a5));
 
   const rawDead = (a20 * city.density * 0.92) + (a5 * city.density * 0.25) + (aTh * city.density * 0.02);
   const rawInj  = (a20 * city.density * 0.05) + (a5 * city.density * 0.50) + (aTh * city.density * 0.35);
 
   return {
-    rf, r20, r5, rt, fl,
-    urf: rf*12, ur20: r20*12, ur5: r5*12, urt: rt*12, ufl: fl*12, // Scale up slightly for diorama visual
+    rf, r20, r5, rt, fl, countMult,
+    urf: rf*VISUAL_SCALE, ur20: r20*VISUAL_SCALE, ur5: r5*VISUAL_SCALE, urt: rt*VISUAL_SCALE, ufl: fl*VISUAL_SCALE, 
     dead: Math.min(city.popCap*0.8, Math.round(rawDead)),
     inj: Math.min(city.popCap*0.3, Math.round(rawInj))
   };
@@ -561,15 +504,18 @@ function updateUI() {
   document.getElementById("wind-deg-badge").textContent = `${state.windDeg}°`;
   document.getElementById("wind-spd-badge").textContent = `${state.windSpeed} km/h`;
   
-  document.getElementById("rad-fireball").textContent = `${m.rf.toFixed(2)} km`;
-  document.getElementById("rad-20psi").textContent = `${m.r20.toFixed(2)} km`;
-  document.getElementById("rad-5psi").textContent = `${m.r5.toFixed(2)} km`;
-  document.getElementById("rad-thermal").textContent = `${m.rt.toFixed(2)} km`;
-  document.getElementById("rad-fallout").textContent = `${m.fl.toFixed(1)} km`;
+  // Update MIRV count UI visibility
+  document.getElementById("mirv-count-wrap").style.display = state.isMIRV ? "flex" : "none";
+
+  document.getElementById("rad-fireball").textContent = `${(m.rf).toFixed(2)} km`;
+  document.getElementById("rad-20psi").textContent = `${(m.r20).toFixed(2)} km`;
+  document.getElementById("rad-5psi").textContent = `${(m.r5).toFixed(2)} km`;
+  document.getElementById("rad-thermal").textContent = `${(m.rt).toFixed(2)} km`;
+  document.getElementById("rad-fallout").textContent = `${(m.fl).toFixed(1)} km`;
 }
 
 // ==========================================
-// 9. ANIMATION LOOP (RENDERER)
+// 8. RENDER ANIMATION
 // ==========================================
 const flashOverlay = document.getElementById("flash-overlay");
 let boomPlayed = false;
@@ -577,19 +523,15 @@ let boomPlayed = false;
 function applyBlastToCity(shockRadius, impactPt) {
   for (let i = 0; i < BLDG_COUNT; i++) {
     const b = bldgData[i];
-    const dx = b.x - impactPt.x;
-    const dz = b.z - impactPt.z;
+    const dx = b.x - impactPt.x; const dz = b.z - impactPt.z;
     const dist = Math.sqrt(dx*dx + dz*dz);
     
     if (dist < shockRadius) {
       dummy.position.set(b.x, 0, b.z);
-      // 건물이 부서져 납작해지는 모형 연출
-      const t = Math.max(0.02, 1.0 - (shockRadius - dist)/40.0);
+      const t = Math.max(0.02, 1.0 - (shockRadius - dist)/50.0);
       dummy.scale.set(b.w, b.originalH * t, b.d);
-      
       const tilt = Math.atan2(dx, dz);
       dummy.rotation.set(Math.cos(tilt)*(1-t)*1.5, 0, -Math.sin(tilt)*(1-t)*1.5);
-      
       dummy.updateMatrix();
       cityMesh.setMatrixAt(i, dummy.matrix);
     }
@@ -604,34 +546,29 @@ function renderFrame(p) {
   document.getElementById("timeline-slider").value = Math.round(p * 1000);
   const stEl = document.getElementById("hud-status");
 
-  const count = state.isMIRV ? MIRV_COUNT : 1;
+  const count = state.isMIRV ? state.mirvCount : 1;
 
-  // --- PHASE 1: FLIGHT ---
   if (p < state.impactPoint) {
-    boomPlayed = false;
-    flashOverlay.style.opacity = 0;
-    explosions.forEach(e => e.group.visible = false);
-    falloutMesh.visible = false;
+    boomPlayed = false; flashOverlay.style.opacity = 0;
+    explosions.forEach(e => e.group.visible = false); falloutMesh.visible = false;
     if(p===0) resetCity();
 
-    document.getElementById("stat-dead").textContent = "0";
-    document.getElementById("stat-injured").textContent = "0";
+    document.getElementById("stat-dead").textContent = "0"; document.getElementById("stat-injured").textContent = "0";
     
     const ft = p / state.impactPoint;
     stEl.textContent = ft > 0.05 ? "INBOUND" : "LAUNCH";
     stEl.className = "tele-val status-flight";
 
     let leadPos = new THREE.Vector3();
+    
+    // Hide unused pool items
+    missileMeshes.forEach((m,idx) => m.visible = (idx < count));
+    trailMeshes.forEach((t,idx) => t.visible = (idx < count));
 
     for (let i=0; i<count; i++) {
-      missileMeshes[i].visible = true;
-      trailMeshes[i].visible = true;
-      
       const pos = trajectories[i].getPoint(ft);
       const next = trajectories[i].getPoint(Math.min(1, ft + 0.01));
-      missileMeshes[i].position.copy(pos);
-      missileMeshes[i].lookAt(next);
-      
+      missileMeshes[i].position.copy(pos); missileMeshes[i].lookAt(next);
       if(i===0) leadPos.copy(pos);
 
       const pts = trailMeshes[i].geometry.attributes.position.array;
@@ -649,222 +586,128 @@ function renderFrame(p) {
     return;
   }
 
-  // --- PHASE 2: DETONATION ---
-  stEl.textContent = "DETONATION";
-  stEl.className = "tele-val status-detonated";
-  document.getElementById("hud-alt").textContent = "0.0 km";
-  document.getElementById("hud-speed").textContent = "IMPACT";
+  // DETONATION PHASE
+  stEl.textContent = "DETONATION"; stEl.className = "tele-val status-detonated";
+  document.getElementById("hud-alt").textContent = "0.0 km"; document.getElementById("hud-speed").textContent = "IMPACT";
+  missileMeshes.forEach(m => m.visible = false); trailMeshes.forEach(t => t.visible = false);
 
-  missileMeshes.forEach(m => m.visible = false);
-  trailMeshes.forEach(t => t.visible = false);
-
-  if(!boomPlayed && state.phase === 'playing') {
-    playSound('boom');
-    boomPlayed = true;
-  }
+  if(!boomPlayed && state.phase === 'playing') { playSound('boom'); boomPlayed = true; }
 
   const pt = (p - state.impactPoint) / (1.0 - state.impactPoint);
-  
-  // Flash
   flashOverlay.style.opacity = Math.max(0, 1 - pt/0.1).toFixed(2);
   
-  // Explosions (Soft style)
-  const exScale = state.isMIRV ? 0.65 : 1.0; 
+  // Explosion sizing
+  const exScale = state.isMIRV ? 0.75 : 1.2; 
   const fbR = Math.max(1, m.urf * Math.pow(Math.min(1, pt/0.25), 0.5) * exScale);
   const shockR = m.urt * Math.min(1.5, pt/0.4) * exScale;
 
-  for(let i=0; i<count; i++){
+  for(let i=0; i<14; i++){
     const ex = explosions[i];
-    ex.group.visible = true;
-    ex.group.position.copy(trajectories[i].getPoint(1.0)); 
-    
-    ex.core.visible = pt < 0.7;
-    ex.outer.visible = pt < 0.9;
-    const cSc = fbR * Math.max(0.1, 1 - pt*1.1);
-    ex.core.scale.set(cSc, cSc, cSc);
-    ex.outer.scale.set(fbR, fbR, fbR);
-    ex.outer.material.opacity = Math.max(0, 0.85 * (1 - pt/0.9));
-    
-    // Cloud rising
-    const rise = pt * (20 * exScale);
-    ex.core.position.y = fbR * 0.4 + rise; 
-    ex.outer.position.y = ex.core.position.y;
-    
-    ex.shock.visible = pt < 0.5;
-    ex.shock.scale.set(shockR, shockR, 1);
-    ex.shock.material.opacity = Math.max(0, 0.6 * (1 - pt/0.5));
-
-    applyBlastToCity(shockR, ex.group.position);
+    if(i < count) {
+      ex.group.visible = true;
+      ex.group.position.copy(trajectories[i].getPoint(1.0)); 
+      
+      ex.core.visible = pt < 0.7; ex.outer.visible = pt < 0.9;
+      const cSc = fbR * Math.max(0.1, 1 - pt*1.1);
+      ex.core.scale.set(cSc, cSc, cSc); ex.outer.scale.set(fbR, fbR, fbR);
+      ex.outer.material.opacity = Math.max(0, 0.85 * (1 - pt/0.9));
+      
+      const rise = pt * (30 * exScale);
+      ex.core.position.y = fbR * 0.4 + rise; ex.outer.position.y = ex.core.position.y;
+      
+      ex.shock.visible = pt < 0.5; ex.shock.scale.set(shockR, shockR, 1);
+      ex.shock.material.opacity = Math.max(0, 0.6 * (1 - pt/0.5));
+      applyBlastToCity(shockR, ex.group.position);
+    } else {
+      ex.group.visible = false;
+    }
   }
 
+  // Fallout
   if (m.ufl > 0 && pt > 0.1) {
     falloutMesh.visible = true;
     falloutMesh.position.set(state.targetPos.x, 0.4, state.targetPos.z);
     const flen = m.ufl * Math.min(1, (pt-0.1)/0.8);
-    const fwid = flen * 0.3 * (state.isMIRV? 2.5: 1);
+    const fwid = flen * 0.3 * (state.isMIRV? 3.5: 1.5);
     falloutMesh.geometry = new THREE.PlaneGeometry(fwid, flen);
     falloutMesh.geometry.translate(0, flen/2, 0); 
     falloutMesh.rotation.z = -THREE.MathUtils.degToRad(state.windDeg);
     falloutMesh.material.opacity = 0.25 * (1 - pt);
-  } else {
-    falloutMesh.visible = false;
-  }
+  } else { falloutMesh.visible = false; }
 
   const cp = Math.min(1, pt/0.5);
   document.getElementById("stat-dead").textContent = Math.round(m.dead * cp).toLocaleString();
   document.getElementById("stat-injured").textContent = Math.round(m.inj * cp).toLocaleString();
 
-  // Camera Shake
   if (pt < 0.08 && state.phase === 'playing') {
-    const shake = (1 - pt/0.08) * 4.0;
-    camera.position.x += (Math.random()-0.5)*shake;
-    camera.position.y += (Math.random()-0.5)*shake;
+    const shake = (1 - pt/0.08) * 5.0;
+    camera.position.x += (Math.random()-0.5)*shake; camera.position.y += (Math.random()-0.5)*shake;
   }
 }
 
 // ==========================================
-// 10. INTERACTION & RAYCASTING
+// 9. EVENT LISTENERS
 // ==========================================
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
 
 document.getElementById("btn-target-mode").addEventListener("click", (e) => {
   state.isTargetingMode = !state.isTargetingMode;
   if(state.isTargetingMode) {
-    e.target.classList.add("active");
-    e.target.textContent = "취소하려면 다시 클릭하세요";
-    document.body.classList.add("targeting-mode");
+    e.target.classList.add("active"); e.target.textContent = "취소하려면 다시 클릭하세요"; document.body.classList.add("targeting-mode");
   } else {
-    e.target.classList.remove("active");
-    e.target.textContent = "🎯 모형 위를 마우스로 직접 클릭 (타겟팅)";
-    document.body.classList.remove("targeting-mode");
+    e.target.classList.remove("active"); e.target.textContent = "🎯 모형 위를 마우스로 직접 클릭 (타겟팅)"; document.body.classList.remove("targeting-mode");
   }
 });
-
 window.addEventListener('pointerdown', (e) => {
   if(!state.isTargetingMode) return;
-  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
   const intersects = raycaster.intersectObject(groundPlane);
   if(intersects.length > 0) {
     state.targetPos.copy(intersects[0].point);
     reticleGrp.position.set(state.targetPos.x, 0, state.targetPos.z);
-    
     state.isTargetingMode = false;
-    const btn = document.getElementById("btn-target-mode");
-    btn.classList.remove("active");
-    btn.textContent = "🎯 모형 위를 마우스로 직접 클릭 (타겟팅)";
-    document.body.classList.remove("targeting-mode");
-
-    buildTrajectories();
-    renderFrame(state.progress);
+    const btn = document.getElementById("btn-target-mode"); btn.classList.remove("active"); btn.textContent = "🎯 모형 위를 마우스로 직접 클릭 (타겟팅)"; document.body.classList.remove("targeting-mode");
+    buildTrajectories(); renderFrame(state.progress);
   }
 });
 
-// UI Listeners
-document.getElementById("target-select").addEventListener("change", (e) => {
-  state.cityKey = e.target.value;
-  state.targetPos.set(0,0,0); 
-  reticleGrp.position.set(0,0,0);
-  buildTrajectories();
-  updateUI();
-  renderFrame(state.progress);
-});
-document.getElementById("weapon-select").addEventListener("change", (e) => {
-  if (e.target.value !== "custom") {
-    state.yieldKt = parseFloat(e.target.value);
-    document.getElementById("yield-slider").value = yieldToSlider(state.yieldKt);
-  }
-  updateUI();
-  renderFrame(state.progress);
-});
-document.getElementById("yield-slider").addEventListener("input", (e) => {
-  state.yieldKt = sliderToYield(parseInt(e.target.value, 10));
-  document.getElementById("weapon-select").value = "custom";
-  updateUI();
-  renderFrame(state.progress);
-});
-document.getElementById("mirv-check").addEventListener("change", (e) => {
-  state.isMIRV = e.target.checked;
-  buildTrajectories();
-  updateUI();
-  renderFrame(state.progress);
-});
+document.getElementById("target-select").addEventListener("change", (e) => { state.cityKey = e.target.value; state.targetPos.set(0,0,0); reticleGrp.position.set(0,0,0); buildTrajectories(); updateUI(); renderFrame(state.progress); });
+document.getElementById("weapon-select").addEventListener("change", (e) => { if (e.target.value !== "custom") { state.yieldKt = parseFloat(e.target.value); document.getElementById("yield-slider").value = yieldToSlider(state.yieldKt); } updateUI(); renderFrame(state.progress); });
+document.getElementById("yield-slider").addEventListener("input", (e) => { state.yieldKt = sliderToYield(parseInt(e.target.value, 10)); document.getElementById("weapon-select").value = "custom"; updateUI(); renderFrame(state.progress); });
+
+document.getElementById("mirv-check").addEventListener("change", (e) => { state.isMIRV = e.target.checked; document.getElementById("mirv-count-wrap").style.display = state.isMIRV ? "flex" : "none"; buildTrajectories(); updateUI(); renderFrame(state.progress); });
+document.getElementById("mirv-count-input").addEventListener("input", (e) => { let v = parseInt(e.target.value); if(v<2) v=2; if(v>14) v=14; state.mirvCount = v; buildTrajectories(); updateUI(); renderFrame(state.progress); });
 document.getElementById("wind-deg").addEventListener("input", (e) => { state.windDeg = e.target.value; updateUI(); renderFrame(state.progress); });
 document.getElementById("wind-spd").addEventListener("input", (e) => { state.windSpeed = e.target.value; updateUI(); renderFrame(state.progress); });
 
-document.getElementById("launch-btn").addEventListener("click", () => {
-  state.progress = 0; state.phase = "playing";
-  document.getElementById("pause-btn").textContent = "PAUSE";
-  playSound('launch');
-});
-document.getElementById("pause-btn").addEventListener("click", () => {
-  if(state.phase === "playing") { state.phase = "paused"; document.getElementById("pause-btn").textContent = "RESUME"; }
-  else if (state.phase === "paused") { state.phase = "playing"; document.getElementById("pause-btn").textContent = "PAUSE"; }
-});
-document.getElementById("reset-btn").addEventListener("click", () => {
-  state.phase = "ready"; state.progress = 0; boomPlayed = false;
-  camera.position.set(200, 250, 200); controls.target.set(0,0,0);
-  camera.zoom = 1; camera.updateProjectionMatrix();
-  renderFrame(0);
-});
+document.getElementById("launch-btn").addEventListener("click", () => { state.progress = 0; state.phase = "playing"; document.getElementById("pause-btn").textContent = "PAUSE"; playSound('launch'); });
+document.getElementById("pause-btn").addEventListener("click", () => { if(state.phase === "playing") { state.phase = "paused"; document.getElementById("pause-btn").textContent = "RESUME"; } else if (state.phase === "paused") { state.phase = "playing"; document.getElementById("pause-btn").textContent = "PAUSE"; } });
+document.getElementById("reset-btn").addEventListener("click", () => { state.phase = "ready"; state.progress = 0; boomPlayed = false; camera.position.set(300, 350, 300); controls.target.set(0,0,0); camera.zoom = 1; camera.updateProjectionMatrix(); renderFrame(0); });
+document.getElementById("timeline-slider").addEventListener("input", (e) => { state.phase = "paused"; document.getElementById("pause-btn").textContent = "RESUME"; state.progress = e.target.value / 1000; renderFrame(state.progress); });
 
-document.getElementById("timeline-slider").addEventListener("input", (e) => {
-  state.phase = "paused"; document.getElementById("pause-btn").textContent = "RESUME";
-  state.progress = e.target.value / 1000;
-  renderFrame(state.progress);
-});
 document.querySelectorAll(".cam-pill").forEach(p => p.addEventListener("click", (e)=>{
   document.querySelectorAll(".cam-pill").forEach(el=>el.classList.remove("active"));
-  e.target.classList.add("active");
-  state.cameraMode = e.target.getAttribute("data-cam");
-  
-  if (state.cameraMode === "diorama") {
-    camera.position.set(200, 250, 200);
-    controls.target.set(0,0,0);
-  }
+  e.target.classList.add("active"); state.cameraMode = e.target.getAttribute("data-cam");
+  if (state.cameraMode === "diorama") { camera.position.set(300, 350, 300); controls.target.set(0,0,0); }
 }));
 
 window.addEventListener("resize", () => {
   const aspect = window.innerWidth / window.innerHeight;
-  camera.left = -frustumSize * aspect;
-  camera.right = frustumSize * aspect;
-  camera.top = frustumSize;
-  camera.bottom = -frustumSize;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.left = -frustumSize * aspect; camera.right = frustumSize * aspect; camera.top = frustumSize; camera.bottom = -frustumSize;
+  camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// ==========================================
-// 11. RENDER LOOP
-// ==========================================
 let lastTime = performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, (now - lastTime)/1000);
   lastTime = now;
-
-  if (state.phase === "playing") {
-    state.progress += dt / state.totalDuration;
-    if (state.progress >= 1) { state.progress = 1; state.phase = "finished"; }
-    renderFrame(state.progress);
-  }
-  
-  // 펄스 애니메이션 (타겟팅 핀)
-  const sc = 1 + Math.sin(now * 0.005) * 0.15;
-  ringMesh.scale.set(sc, sc, 1);
-  pinMesh.position.y = 1 + Math.sin(now * 0.004) * 0.5;
-
-  controls.update();
-  renderer.render(scene, camera);
+  if (state.phase === "playing") { state.progress += dt / state.totalDuration; if (state.progress >= 1) { state.progress = 1; state.phase = "finished"; } renderFrame(state.progress); }
+  const sc = 1 + Math.sin(now * 0.005) * 0.15; ringMesh.scale.set(sc, sc, 1); pinMesh.position.y = 1 + Math.sin(now * 0.004) * 0.5;
+  controls.update(); renderer.render(scene, camera);
 }
-
-updateUI();
-renderFrame(0);
-requestAnimationFrame(animate);
-
+updateUI(); renderFrame(0); requestAnimationFrame(animate);
 </script>
 </body>
 </html>
